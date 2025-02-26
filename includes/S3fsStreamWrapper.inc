@@ -167,13 +167,13 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
     // Always use HTTPS when the page is being served via HTTPS, to avoid
     // complaints from the browser about insecure content.
     global $is_https;
-    if ($is_https) {
+    $s3fs_use_https = config('s3fs.settings')->get('s3fs_use_https');
+    if (!$s3fs_use_https && $is_https) {
       // Set the 's3fs_use_https' configuration value to TRUE.
       config_set('s3fs.settings', 's3fs_use_https', TRUE);
+      $s3fs_use_https = TRUE;
     }
 
-    // Retrieve the 's3fs_use_https' configuration value.
-    $s3fs_use_https = config('s3fs.settings')->get('s3fs_use_https');
 
 
     // Use the value to determine the scheme.
