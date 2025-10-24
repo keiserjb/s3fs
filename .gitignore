@@ -1,5 +1,4 @@
 # Development files (not shipped with module)
-/vendor/
 
 # Build output (shipped with module)
 # /build/ is NOT ignored - it contains scoped dependencies
