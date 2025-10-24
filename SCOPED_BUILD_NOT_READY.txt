@@ -1,0 +1,46 @@
+STATUS: Scoped build temporarily disabled for stability.
+
+PROBLEM ANALYSIS:
+================
+S3fsStreamWrapper extends Aws\S3\StreamWrapper at the class definition level:
+
+  class S3fsStreamWrapper extends StreamWrapper { ... }
+
+This parse-time dependency means PHP must resolve StreamWrapper to a real class
+during parsing of S3fsStreamWrapper.inc, before any runtime code (including
+autoloader aliases) can execute.
+
+When using a scoped build with BackdropS3FS\ namespace prefix:
+- The scoped autoloader loads BackdropS3FS\Aws\S3\StreamWrapper files
+- Runtime alias code tries to create: Aws\S3\StreamWrapper -> BackdropS3FS\Aws\S3\StreamWrapper
+- But parse happens BEFORE the alias can be created
+- Result: "Class not found" at parse time, or "already declared" if classes load twice
+
+CURRENT WORKAROUND (in place):
+=============================
+s3fs_stream_wrappers() now returns [] (empty array)
+s3fs_stream_wrappers_alter() is disabled
+This allows the site to load without s3fs functionality.
+
+TO RE-ENABLE S3FS FUNCTIONALITY:
+================================
+Option A: Use Composer Manager (recommended for now)
+  1. Enable composer_manager module
+  2. Run: composer require aws/aws-sdk-php
+  3. S3fs will use the global vendor directory automatically
+  4. No scoping needed; AWS SDK is shared across modules
+  5. Both s3fs and openai will work without conflicts
+
+Option B: Fix scoped build with parse-time autoloader shim (advanced)
+  The theory is sound but implementation requires careful testing:
+  1. The aws-shim.php file attempts this but needs refinement
+  2. Would need to register an autoloader that runs before S3fsStreamWrapper
+     is parsed, to create aliases in time for class resolution
+  3. Requires careful error handling and defensive coding
+  4. Is likely not worth the complexity vs using Composer Manager
+
+RECOMMENDATION:
+===============
+For production use, enable composer_manager and use a shared global vendor.
+The scoped build approach is better for modules that only "use" external classes,
+not "extend" them (like openai module).

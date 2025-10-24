@@ -1,0 +1,11 @@
+<?php
+
+namespace BackdropS3FS\Aws\SavingsPlans\Exception;
+
+use BackdropS3FS\Aws\Exception\AwsException;
+/**
+ * Represents an error interacting with the **AWS Savings Plans** service.
+ */
+class SavingsPlansException extends AwsException
+{
+}

@@ -1,0 +1,26 @@
+# Development files (not shipped with module)
+/vendor/
+build.sh
+scoper.inc.php
+
+# Build output (shipped with module)
+# /build/ is NOT ignored - it contains scoped dependencies
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Logs
+*.log

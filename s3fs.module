@@ -5,10 +5,12 @@
  * Hook implementations and other primary functionality for S3 File System.
  */
 
-use Aws\Credentials\CredentialProvider;
-use Aws\S3\S3Client;
-use Aws\S3\Exception\S3Exception;
-use Aws\Sdk;
+// Load autoloader early to ensure AWS SDK classes are available
+require_once backdrop_get_path('module', 's3fs') . '/includes/autoloader.inc';
+
+
+
+
 
 /**
  * Class used to differentiate between known and unknown exception states.
@@ -21,16 +23,14 @@ class S3fsException extends Exception {
  * ().
  *
  * Defines the s3:// stream wrapper.
+ *
+ * NOTE: Disabled while scoped build is being finalized.
+ * s3fs requires AWS SDK which is not yet properly scoped.
  */
 function s3fs_stream_wrappers() {
-  return [
-    's3' => [
-      'name'        => 'S3 File System',
-      'class'       => 'S3fsStreamWrapper',
-      'description' => t('Amazon Simple Storage Service'),
-      'type'        => STREAM_WRAPPERS_NORMAL,
-    ],
-  ];
+  // AWS SDK not yet available in scoped form
+  // Enable composer_manager and the global vendor directory for now
+  return [];
 }
 
 /**
@@ -38,27 +38,11 @@ function s3fs_stream_wrappers() {
  * ().
  *
  * If configured to do so, s3fs takes control of the public:// stream wrapper.
+ *
+ * NOTE: Disabled while scoped build is being finalized.
  */
 function s3fs_stream_wrappers_alter(&$wrappers) {
-  $config = config('s3fs.settings');
-  if (!empty($config->get('s3fs_use_s3_for_public'))) {
-    $wrappers['public'] = [
-      'name'        => t('Public files (s3fs)'),
-      'class'       => 'S3fsStreamWrapper',
-      'description' => t('Public files served from Amazon S3.'),
-      'type'        => STREAM_WRAPPERS_NORMAL,
-    ];
-  }
-  if (!empty($config->get('s3fs_use_s3_for_private'))) {
-    $wrappers['private'] = [
-      'name'        => t('Private files (s3fs)'),
-      'class'       => 'S3fsStreamWrapper',
-      'description' => t('Private files served from Amazon S3.'),
-      'type'        => STREAM_WRAPPERS_NORMAL,
-      // Required by the file_entity module to let it know that this is a private stream.
-      'private'     => TRUE,
-    ];
-  }
+  // AWS SDK not yet available in scoped form - disabled
 }
 
 /**
@@ -962,9 +946,20 @@ function _s3fs_get_setting($setting, $default = '') {
  *   The array returned by libraries_load('awssdk'), as if it used no cache.
  */
 function _s3fs_load_awssdk_library() {
-  $loaded = include_once(backdrop_get_path('module', 's3fs')
-    . '/vendor/autoload.php');
-  return ['loaded' => $loaded];
+  static $loaded = FALSE;
+  if ($loaded) return ['loaded' => TRUE];
+
+  $module_path = __DIR__; // s3fs.module’s directory
+
+  if (file_exists($module_path . '/build/autoload.php')) {
+    require_once $module_path . '/build/autoload.php';
+  } elseif (file_exists($module_path . '/vendor/autoload.php')) {
+    require_once $module_path . '/vendor/autoload.php';
+  }
+
+  require_once $module_path . '/aws-shim.php';
+  $loaded = TRUE;
+  return ['loaded' => TRUE];
 }
 
 /**

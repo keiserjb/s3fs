@@ -9,7 +9,17 @@
  * stream wrapper, too.
  */
 
-_s3fs_load_awssdk_library();
+// Load autoloader and create aliases BEFORE use statements
+require_once dirname(__FILE__) . '/autoloader.inc';
+if (!s3fs_load_autoloader()) {
+  // AWS SDK not available
+  class S3fsStreamWrapper {
+    public function __construct() {
+      throw new Exception('AWS SDK not available. Please enable composer_manager module and run: composer require aws/aws-sdk-php');
+    }
+  }
+  return;
+}
 
 use Aws\CacheInterface;
 use Aws\S3\Exception\S3Exception;

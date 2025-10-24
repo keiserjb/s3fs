@@ -1,0 +1,11 @@
+<?php
+
+namespace BackdropS3FS\Aws\IoTManagedIntegrations\Exception;
+
+use BackdropS3FS\Aws\Exception\AwsException;
+/**
+ * Represents an error interacting with the **Managed integrations for AWS IoT Device Management** service.
+ */
+class IoTManagedIntegrationsException extends AwsException
+{
+}
