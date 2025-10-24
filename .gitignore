@@ -1,7 +1,5 @@
 # Development files (not shipped with module)
 /vendor/
-build.sh
-scoper.inc.php
 
 # Build output (shipped with module)
 # /build/ is NOT ignored - it contains scoped dependencies
