@@ -23,6 +23,11 @@ class S3fsException extends Exception {
  * Defines the s3:// stream wrapper.
  */
 function s3fs_stream_wrappers() {
+  // On bootstrap of a fresh install with Composer Manager,
+  // the composer autoloader needs to be loaded.
+  if (module_exists('composer_manager')) {
+    composer_manager_register_autoloader();
+  }
   return [
     's3' => [
       'name'        => 'S3 File System',
@@ -804,19 +809,30 @@ function _s3fs_get_amazons3_client() {
     $credentials_file = $config->get('s3fs_credentials_file');
 
     // Check if AWS SDK is loaded and accessible.
-    $library = _s3fs_load_awssdk_library();
-    if (!$library['loaded']) {
+    $sdk_loaded = FALSE;
+    if (module_exists('composer_manager')) {
+      if (function_exists('composer_manager_register_autoloader')) {
+        composer_manager_register_autoloader();
+      }
+      $sdk_loaded = class_exists('Aws\\Sdk');
+    }
+    elseif (module_exists('libraries')) {
+      $library = _s3fs_load_awssdk_library();
+      $sdk_loaded = $library['loaded'];
+    }
+    else {
+      $library = _s3fs_load_awssdk_library();
+      $sdk_loaded = $library['loaded'];
+    }
+
+    if (!$sdk_loaded) {
       throw new S3fsException(
-        t(
-          'Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'
-        )
+        t('Unable to load the AWS SDK. Please ensure that the AWS SDK library is installed correctly.')
       );
     }
     elseif (!class_exists('Aws\S3\S3Client')) {
       throw new S3fsException(
-        t(
-          'Cannot load Aws\S3\S3Client class. Please ensure that the AWS SDK library is installed correctly.'
-        )
+        t('Cannot load Aws\S3\S3Client class. Please ensure that the AWS SDK library is installed correctly.')
       );
     }
 
@@ -962,9 +978,41 @@ function _s3fs_get_setting($setting, $default = '') {
  *   The array returned by libraries_load('awssdk'), as if it used no cache.
  */
 function _s3fs_load_awssdk_library() {
-  $loaded = include_once(backdrop_get_path('module', 's3fs')
-    . '/vendor/autoload.php');
-  return ['loaded' => $loaded];
+  // Use a static tracker to record where the SDK was loaded from for diagnostics.
+  $source_ref =& backdrop_static('s3fs_sdk_source');
+
+  // Prefer Composer Manager's autoloader if available.
+  if (module_exists('composer_manager')) {
+    if (function_exists('composer_manager_register_autoloader')) {
+      composer_manager_register_autoloader();
+    }
+    $source_ref = 'composer_manager';
+    // Determine loaded status by checking for a core SDK class.
+    return ['loaded' => class_exists('Aws\\Sdk')];
+  }
+  // Fall back to the module's bundled vendor directory.
+  $autoload = backdrop_get_path('module', 's3fs') . '/vendor/autoload.php';
+  $loaded = file_exists($autoload) ? include_once($autoload) : FALSE;
+  $source_ref = 'module_vendor';
+  return ['loaded' => (bool) $loaded || class_exists('Aws\\Sdk')];
+}
+
+/**
+ * Helper to report where the AWS SDK was loaded from during this request.
+ *
+ * @return string
+ *   Human-readable source description.
+ */
+function s3fs_get_sdk_source() {
+  $source = backdrop_static('s3fs_sdk_source');
+  switch ($source) {
+    case 'composer_manager':
+      return 'Composer Manager autoloader';
+    case 'module_vendor':
+      return 'Module vendor/autoload.php';
+    default:
+      return 'Unknown (autoloader not recorded)';
+  }
 }
 
 /**

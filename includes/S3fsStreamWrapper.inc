@@ -9,6 +9,7 @@
  * stream wrapper, too.
  */
 
+// Ensure the AWS SDK autoloader is registered (Composer Manager preferred).
 _s3fs_load_awssdk_library();
 
 use Aws\CacheInterface;
