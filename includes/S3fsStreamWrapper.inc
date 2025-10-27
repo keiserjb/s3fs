@@ -157,14 +157,6 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
     $this->context = stream_context_get_default();
     stream_context_set_option($this->context, 's3', 'seekable', TRUE);
 
-    // Check if bucket is configured.
-    if (empty($this->config->get('s3fs_bucket'))) {
-      $msg = t('Your AmazonS3 bucket name is not configured. Please visit the !settings_page.',
-        array('!settings_page' => l(t('configuration page'), '/admin/config/media/s3fs/settings')));
-      watchdog('S3 File System', $msg, array(), WATCHDOG_ERROR);
-      throw new Exception($msg);
-    }
-
     // Always use HTTPS when the page is being served via HTTPS, to avoid
     // complaints from the browser about insecure content.
     global $is_https;
@@ -295,6 +287,21 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
 
     // No mime type matches, so return the default.
     return 'application/octet-stream';
+  }
+
+  /**
+   * Helper method to check if S3 bucket is configured.
+   *
+   * @throws Exception
+   *   If the bucket is not configured.
+   */
+  private function _check_bucket_configured() {
+    if (empty($this->config->get('s3fs_bucket'))) {
+      $msg = t('Your AmazonS3 bucket name is not configured. Please visit the !settings_page.',
+        array('!settings_page' => l(t('configuration page'), '/admin/config/media/s3fs/settings')));
+      watchdog('S3 File System', $msg, array(), WATCHDOG_ERROR);
+      throw new Exception($msg);
+    }
   }
 
   /**
@@ -638,6 +645,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @see http://php.net/manual/en/streamwrapper.stream-open.php
    */
   public function stream_open($uri, $mode, $options, &$opened_path) {
+    $this->_check_bucket_configured();
     $this->setUri($uri);
     $converted = $this->convertUriToKeyedPath($uri);
     return parent::stream_open($converted, $mode, $options, $opened_path);
@@ -736,6 +744,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @see http://php.net/manual/en/streamwrapper.unlink.php
    */
   public function unlink($uri) {
+    $this->_check_bucket_configured();
     $this->setUri($uri);
     $converted = $this->convertUriToKeyedPath($uri);
     if (parent::unlink($converted)) {
@@ -749,6 +758,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
   }
 
   public function url_stat($uri, $flags) {
+    $this->_check_bucket_configured();
     $this->setUri($uri);
     return $this->_stat($uri);
   }
@@ -769,6 +779,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @see http://php.net/manual/en/streamwrapper.mkdir.php
    */
   public function mkdir($uri, $mode, $options) {
+    $this->_check_bucket_configured();
     // Some Backdrop plugins call mkdir with a trailing slash. We mustn't store
     // that slash in the cache.
     $uri = rtrim($uri, '/');
@@ -812,6 +823,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @see http://php.net/manual/en/streamwrapper.rmdir.php
    */
   public function rmdir($uri, $options) {
+    $this->_check_bucket_configured();
     if (!$this->_path_is_dir($uri)) {
       return FALSE;
     }
@@ -859,6 +871,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @see http://php.net/manual/en/streamwrapper.dir-opendir.php
    */
   public function dir_opendir($uri, $options = NULL) {
+    $this->_check_bucket_configured();
     $this->_prevent_cross_scheme_access($uri);
 
     if (!$this->_path_is_dir($uri)) {

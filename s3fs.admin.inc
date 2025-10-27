@@ -48,7 +48,7 @@ function s3fs_settings($form, &$form_state) {
     '#type'        => 'fieldset',
     '#title'       => t('Amazon Web Services Credentials'),
     '#description' => t(
-      "To configure your Amazon Web Services credentials, enter the values in settings.php use the <a href='https://backdropcms.org/project/key' target='blank'>Key module.</a><br>" .
+      "To configure your Amazon Web Services credentials, enter the values in settings.php or use the <a href='https://backdropcms.org/project/key' target='blank'>Key module.</a><br>" .
       "For more information, please check the <a href='https://docs.backdropcms.org/change-records/any-config-value-can-be-overridden-via-settingsphp' target='_blank'>Backdrop CMS Documentation</a>."
       ),
     '#collapsible' => TRUE,

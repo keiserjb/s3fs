@@ -355,8 +355,7 @@ function s3fs_update_last_removed()
 /**
  * Migrate s3fs variables to config.
  */
-function s3fs_update_1000()
-{
+function s3fs_update_1000() {
   $config = config('s3fs.settings');
 
   $config->set('s3fs_bucket', update_variable_get('s3fs_bucket'));
@@ -385,8 +384,7 @@ function s3fs_update_1000()
   $config->set('s3fs_file_uri_scheme_override', update_variable_get('s3fs_file_uri_scheme_override'));
   $config->set('s3fs_awssdk_access_key', update_variable_get('s3fs_awssdk_access_key'));
   $config->set('s3fs_awssdk_secret_key', update_variable_get('s3fs_awssdk_secret_key'));
-  $config->set('s3fs_awssdk_default_cache_$config', update_variable_get('s3fs_awssdk2_default_cache_$config'));
-  $config->set('s3fs_awssdk_default_cache_$config', update_variable_get('s3fs_awssdk2_default_cache_$config'));
+  $config->set('s3fs_awssdk_default_cache_config', update_variable_get('s3fs_awssdk2_default_cache_config'));
   $config->set('s3fs_no_redirect_derivatives', update_variable_get('s3fs_no_redirect_derivatives'));
 
   $config->save();
@@ -404,7 +402,6 @@ function s3fs_update_1000()
   update_variable_del('s3fs_domain');
   update_variable_del('s3fs_domain_root');
   update_variable_del('s3fs_domain_s3_private');
-  update_variable_del('s3fs_use_customhost');
   update_variable_del('s3fs_hostname');
   update_variable_del('s3fs_no_redirect_derivatives');
   update_variable_del('s3fs_use_versioning');
@@ -421,3 +418,4 @@ function s3fs_update_1000()
   update_variable_del('s3fs_saveas');
   update_variable_del('s3fs_torrents');
 }
+

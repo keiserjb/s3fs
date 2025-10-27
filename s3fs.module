@@ -786,14 +786,15 @@ function _s3fs_get_amazons3_client() {
   if (!isset($s3) || $static_config != $config) {
     // Check if the keys managed by the Key module exist.
     if (module_exists('key')) {
-      // Load the keys from the Key module configuration.
-      $key_config = config('key.module');
+      // Safely read configured key names.
+      $ak_name = $config->get('keymodule_access_key_name');
+      $sk_name = $config->get('keymodule_secret_key_name');
 
-      // Get the key values using key_get_key_value().
-      $access_key = key_get_key_value($config->get('keymodule_access_key_name'));
-      $secret_key = key_get_key_value($config->get('keymodule_secret_key_name'));
+      // Only call key_get_key_value() if we have valid string key names.
+      $access_key = (is_string($ak_name) && $ak_name !== '') ? key_get_key_value($ak_name) : NULL;
+      $secret_key = (is_string($sk_name) && $sk_name !== '') ? key_get_key_value($sk_name) : NULL;
 
-      if ($access_key === null || $secret_key === null) {
+      if ($access_key === NULL || $secret_key === NULL) {
         // If the keys are not set in the Key module configuration, fall back to S3FS configuration.
         $access_key = $config->get('s3fs_awssdk_access_key');
         $secret_key = $config->get('s3fs_awssdk_secret_key');
@@ -830,9 +831,9 @@ function _s3fs_get_amazons3_client() {
         t('Unable to load the AWS SDK. Please ensure that the AWS SDK library is installed correctly.')
       );
     }
-    elseif (!class_exists('Aws\S3\S3Client')) {
+    elseif (!class_exists('Aws\\S3\\S3Client')) {
       throw new S3fsException(
-        t('Cannot load Aws\S3\S3Client class. Please ensure that the AWS SDK library is installed correctly.')
+        t('Cannot load Aws\\S3\\S3Client class. Please ensure that the AWS SDK library is installed correctly.')
       );
     }
 
@@ -869,8 +870,7 @@ function _s3fs_get_amazons3_client() {
       // Also, setting it will throw an exception if a region hasn't been set.
       $client_config['signature'] = 'v4';
     }
-    if (!empty($config->get('s3fs_use_customhost')) && !empty
-      ($config->get('s3fs_hostname'))) {
+    if (!empty($config->get('s3fs_use_customhost')) && !empty($config->get('s3fs_hostname'))) {
       $client_config['use_path_style_endpoint'] = false;
       $client_config['endpoint'] = $config->get('s3fs_hostname');
     }
