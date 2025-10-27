@@ -403,6 +403,7 @@ function s3fs_update_1000() {
   update_variable_del('s3fs_domain_root');
   update_variable_del('s3fs_domain_s3_private');
   update_variable_del('s3fs_hostname');
+  update_variable_del('s3fs_use_customhost');
   update_variable_del('s3fs_no_redirect_derivatives');
   update_variable_del('s3fs_use_versioning');
   update_variable_del('s3fs_cache_control_header');
