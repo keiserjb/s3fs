@@ -1,5 +1,6 @@
 name = S3 File System
 description = Adds an Amazon Simple Storage Service-based remote file system to Backdrop.
 backdrop = 1.x
+php = 8.1
 type = module
 configure = admin/config/media/s3fs/settings
