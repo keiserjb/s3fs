@@ -31,7 +31,7 @@ function s3fs_drush_command() {
 function drush_s3fs_refresh_cache() {
   $config = _s3fs_get_config();
   if (!_s3fs_validate_config($config)) {
-    drupal_set_message(
+    backdrop_set_message(
       dt('Unable to validate your s3fs configuration settings. Please configure S3 File System from the admin/config/media/s3fs page and try again.'),
       'error'
     );
@@ -47,14 +47,14 @@ function drush_s3fs_refresh_cache() {
 function drush_s3fs_copy_local() {
   $config = _s3fs_get_config();
   if (!_s3fs_validate_config($config)) {
-    drupal_set_message(
+    backdrop_set_message(
       dt('Unable to validate your s3fs configuration settings. Please configure S3 File System from the admin/config/media/s3fs page and try again.'),
       'error'
     );
     return;
   }
   if (empty($config['use_s3_for_public']) && empty($config['use_s3_for_private'])) {
-    drupal_set_message(
+    backdrop_set_message(
       dt('S3 File System is not configured to take over any other file systems.')
     );
     return;

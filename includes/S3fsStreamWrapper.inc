@@ -145,29 +145,26 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
       $this->torrents = $settings['torrents'];
       $this->presignedURLs = $settings['presignedURLs'];
       $this->saveas = $settings['saveas'];
-      $this->s3 = _s3fs_get_amazons3_client($this->config);
+      $this->s3 = _s3fs_get_amazons3_client();
       $this->register($this->s3);
       return;
     }
 
     // Begin construction if not cached.
     $this->config = config('s3fs.settings');
-    $this->s3 = _s3fs_get_amazons3_client($this->config);
+    $this->s3 = _s3fs_get_amazons3_client();
     $this->register($this->s3);
     $this->context = stream_context_get_default();
     stream_context_set_option($this->context, 's3', 'seekable', TRUE);
 
     // Always use HTTPS when the page is being served via HTTPS, to avoid
-    // complaints from the browser about insecure content.
+    // complaints from the browser about insecure content. This only affects
+    // the current request; the stored setting is not modified.
     global $is_https;
-    $s3fs_use_https = config('s3fs.settings')->get('s3fs_use_https');
+    $s3fs_use_https = $this->config->get('s3fs_use_https');
     if (!$s3fs_use_https && $is_https) {
-      // Set the 's3fs_use_https' configuration value to TRUE.
-      config_set('s3fs.settings', 's3fs_use_https', TRUE);
       $s3fs_use_https = TRUE;
     }
-
-
 
     // Use the value to determine the scheme.
     $scheme = $s3fs_use_https ? 'https' : 'http';
@@ -246,7 +243,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    * @param string $protocol
    * @param \Aws\CacheInterface|null $cache
    */
-  public static function register(S3ClientInterface $client, $protocol = 's3', CacheInterface $cache = null, $v2Existence = false) {
+  public static function register(S3ClientInterface $client, $protocol = 's3', ?CacheInterface $cache = null, $v2Existence = false) {
     parent::register($client, $protocol, $cache, $v2Existence);
   }
 
@@ -360,8 +357,17 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
       $metadata = $this->_s3fs_get_object($this->uri);
       $is_zero_byte = !isset($metadata['filesize']) || $metadata['filesize'] == 0;
       if (!$metadata || $is_zero_byte) {
-        if ($is_zero_byte) {
-          $this->unlink($this->uri);
+        if ($metadata && $is_zero_byte) {
+          // A zero-byte derivative is a failed generation. Remove the stale
+          // cache entry so the derivative gets regenerated. The S3 object
+          // itself (if any) will be overwritten by the regeneration.
+          $this->_delete_cache($this->uri);
+          clearstatcache(TRUE, $this->uri);
+        }
+        // Allow _s3fs_image_style_deliver() to generate this derivative
+        // on demand without being throttled by the flood control.
+        if (function_exists('image_style_add_allowed_uri')) {
+          image_style_add_allowed_uri($this->uri);
         }
         // The style delivery path looks like: s3/files/styles/thumbnail/...
         // And $uri_parts looks like array('styles', 'thumbnail', ...),
@@ -581,7 +587,6 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    *   Always returns TRUE.
    */
   public function chmod($mode) {
-    $octal_mode = decoct($mode);
     return TRUE;
   }
 
@@ -681,13 +686,17 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
 
     $options[$this->protocol]['ContentType'] = $this->getMimeType($this->uri);
 
-    // All non-private files uploaded to S3 must be set to public-read, or users' browsers
-    // will get PermissionDenied errors, and torrent URLs won't work. The one exception to
-    // this is when all content is being routed through an edge service and access via S3
-    // should be blocked.
-    if (!empty($this->config->get('s3fs_use_cname')) && !empty
+    // Buckets using the "bucket owner enforced" Object Ownership setting
+    // (the default for new buckets) reject all requests that include an ACL,
+    // so the site admin can disable ACLs entirely.
+    if (!empty($this->config->get('s3fs_disable_acl'))) {
+      // Don't set any ACL.
+    }
+    elseif (!empty($this->config->get('s3fs_use_cname')) && !empty
       ($this->config->get('s3fs_domain')) && !empty
       ($this->config->get('s3fs_domain_s3_private'))) {
+      // When all content is being routed through an edge service, access
+      // via S3 should be blocked.
       $options[$this->protocol]['ACL'] = 'private';
     }
     elseif (file_uri_scheme($this->uri) != 'private') {
@@ -697,7 +706,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
     }
     // Set the Cache-Control header, if the user specified one.
     if (!empty($this->config->get('s3fs_cache_control_header'))) {
-      $options[$this->protocol]['CacheControl'] = config('s3fs.settings')->get('cache_control_header');
+      $options[$this->protocol]['CacheControl'] = $this->config->get('s3fs_cache_control_header');
     }
 
     if (!empty($this->config->get('s3fs_encryption'))) {
@@ -954,7 +963,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
    */
   public function dir_readdir() {
     $current = current($this->dir);
-    if ($current) {
+    if ($current !== FALSE) {
       next($this->dir);
     }
     return $current;
@@ -965,15 +974,22 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
     $this->_prevent_cross_scheme_access($to_path);
 
     // Set access for new item in stream context.
-    if (file_uri_scheme($from_path) != 'private') {
+    if (file_uri_scheme($from_path) != 'private' && empty($this->config->get('s3fs_disable_acl'))) {
       stream_context_set_option($this->context, 's3', 'ACL', 'public-read');
     }
 
     // If parent succeeds in renaming, updated local metadata and cache.
     if (parent::rename($this->convertUriToKeyedPath($from_path), $this->convertUriToKeyedPath($to_path))) {
       $metadata = $this->_read_cache($from_path);
-      $metadata['uri'] = $to_path;
-      $this->_write_cache($metadata);
+      if ($metadata) {
+        $metadata['uri'] = $to_path;
+        $this->_write_cache($metadata);
+      }
+      else {
+        // The source file wasn't cached; fetch the metadata of the renamed
+        // object from S3 instead.
+        $this->writeUriToCache($to_path);
+      }
       $this->_delete_cache($from_path);
       clearstatcache(TRUE, $from_path);
       clearstatcache(TRUE, $to_path);
@@ -1032,7 +1048,6 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
       $stat[12] = $stat['blocks'] = 0;
 
       if (!$metadata['dir']) {
-        $stat[4]  = $stat['uid'] = 's3fs';
         $stat[7]  = $stat['size'] = $metadata['filesize'];
         $stat[8]  = $stat['atime'] = $metadata['timestamp'];
         $stat[9]  = $stat['mtime'] = $metadata['timestamp'];
@@ -1068,7 +1083,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
 
     // If cache ignore is enabled, query S3 for all uris which aren't in the
     // cache, and non-folder uris which are.
-    if (!empty($this->config->get('s3fs_ignore_cache')) && !$metadata['dir']) {
+    if (!empty($this->config->get('s3fs_ignore_cache')) && (!$metadata || empty($metadata['dir']))) {
       try {
         // If _get_metadata_from_s3() returns FALSE, the file doesn't exist.
         $metadata = $this->_get_metadata_from_s3($uri);
@@ -1104,7 +1119,7 @@ class S3fsStreamWrapper extends StreamWrapper implements BackdropStreamWrapperIn
 
     $public_folder = !empty($this->config->get('s3fs_public_folder')) ? $this->config->get('s3fs_public_folder') : 's3fs-public';
     $public_folder = trim($public_folder, '/');
-    $private_folder = !empty($this->config->get['s3fs_private_folder']) ? $this->config->get['s3fs_private_folder'] : 's3fs-private';
+    $private_folder = !empty($this->config->get('s3fs_private_folder')) ? $this->config->get('s3fs_private_folder') : 's3fs-private';
     $private_folder = trim($private_folder, '/');
 
     $query = db_select('s3fs_file', 's')

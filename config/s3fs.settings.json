@@ -14,6 +14,7 @@
     "s3fs_hostname": "",
     "s3fs_no_redirect_derivatives": 0,
     "s3fs_use_versioning": 0,
+    "s3fs_disable_acl": 0,
     "s3fs_cache_control_header": "",
     "s3fs_encryption": "",
     "s3fs_use_https": 0,
@@ -25,5 +26,7 @@
     "s3fs_private_folder": "s3fs-private",
     "s3fs_presigned_urls": "",
     "s3fs_saveas": "",
-    "s3fs_torrents": ""
+    "s3fs_torrents": "",
+    "keymodule_access_key_name": "",
+    "keymodule_secret_key_name": ""
 }

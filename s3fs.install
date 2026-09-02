@@ -264,17 +264,11 @@ function s3fs_requirements($phase) {
 
 /**
  * Implements hook_uninstall().
-().
  */
 function s3fs_uninstall()
 {
-  // Load our module file, since s3fs is current disabled.
-  backdrop_load('module', 's3fs');
-
-  // Remove all the s3fs settings variables.
-  foreach (_s3fs_get_config() as $key => $value) {
-    config_clear('s3fs.settings', "s3fs_$key");
-  }
+  // Remove all the s3fs settings.
+  config('s3fs.settings')->delete();
 
   // Remove 's3' from the list of public file schemas.
   $file_schema = config_get('system.core', 'file_default_scheme');
@@ -285,7 +279,6 @@ function s3fs_uninstall()
 
 /**
  * Implements hook_schema().
-().
  */
 function s3fs_schema()
 {
@@ -384,7 +377,7 @@ function s3fs_update_1000() {
   $config->set('s3fs_file_uri_scheme_override', update_variable_get('s3fs_file_uri_scheme_override'));
   $config->set('s3fs_awssdk_access_key', update_variable_get('s3fs_awssdk_access_key'));
   $config->set('s3fs_awssdk_secret_key', update_variable_get('s3fs_awssdk_secret_key'));
-  $config->set('s3fs_awssdk_default_cache_config', update_variable_get('s3fs_awssdk2_default_cache_config'));
+  $config->set('s3fs_awssdk_default_cache_config', update_variable_get('s3fs_awssdk_default_cache_config'));
   $config->set('s3fs_no_redirect_derivatives', update_variable_get('s3fs_no_redirect_derivatives'));
 
   $config->save();
@@ -403,6 +396,7 @@ function s3fs_update_1000() {
   update_variable_del('s3fs_domain_root');
   update_variable_del('s3fs_domain_s3_private');
   update_variable_del('s3fs_hostname');
+  update_variable_del('s3fs_use_customhost');
   update_variable_del('s3fs_no_redirect_derivatives');
   update_variable_del('s3fs_use_versioning');
   update_variable_del('s3fs_cache_control_header');

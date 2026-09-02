@@ -46,7 +46,8 @@ else {
       $this->public_files_directory = variable_get('file_public_path');
       // Prevent issues with derivative tokens during test.
       variable_set('image_allow_insecure_derivatives', TRUE);
-      $this->bucket_not_found = !$this->s3->doesBucketExist($this->config['bucket']);
+      // Use the non-deprecated V2 existence check supported by AWS SDK v3.
+      $this->bucket_not_found = !$this->s3->doesBucketExistV2($this->config['bucket']);
       if (!$this->bucket_not_found) {
         $this->s3->deleteMatchingObjects($this->config['bucket'], $this->remote_tests_folder_key);
         debug("Deleted file(s) from S3 test folder to prepare for the test.");

@@ -81,11 +81,6 @@ if (module_exists('key')) {
     '#key_filters' => ['type' => 'authentication'],
     '#options' => key_get_key_names_as_options(),
     '#description' => t('Select a key containing the AWS access key.'),
-    '#states' => [
-      'visible' => [
-        ':input[name="keymodule"]' => ['checked' => TRUE],
-      ],
-    ],
   ];
 
   // AWS Secret Key (Select element)
@@ -96,28 +91,9 @@ if (module_exists('key')) {
     '#key_filters' => ['type' => 'authentication'],
     '#options' => key_get_key_names_as_options(),
     '#description' => t('Select a key containing the AWS secret key.'),
-    '#states' => [
-      'visible' => [
-        ':input[name="keymodule"]' => ['checked' => TRUE],
-      ],
-    ],
   ];
 }
 
-
-  # NOTE: The awssdk settings can be a bit confusing. They start with "s3fs_"
-  # to ensure that they get pulled as part of _s3fs_get_config(), but they can
-  # be hard-coded as overrides in settings.php without the s3fs_ prefix.
-  /* $form['aws_credentials']['s3fs_awssdk_access_key'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Amazon Web Services Access Key'),
-    '#default_value' => $config->get('s3fs_awssdk_access_key'),
-  );
-  $form['aws_credentials']['s3fs_awssdk_secret_key'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Amazon Web Services Secret Key'),
-    '#default_value' => $config->get('s3fs_awssdk_secret_key'),
-  ); */
 
   $form['aws_credentials']['s3fs_use_instance_profile'] = array(
     '#type' => 'checkbox',
@@ -283,6 +259,17 @@ if (module_exists('key')) {
     ),
   );
 
+  $form['advanced']['s3fs_disable_acl'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Don't set ACLs on uploaded objects"),
+    '#default_value' => $config->get('s3fs_disable_acl'),
+    '#description' => t(
+      'Buckets using the "Bucket owner enforced" Object Ownership setting (the default for buckets created
+      since April 2023) have ACLs disabled and reject any upload that specifies one. Enable this option for
+      such buckets, and use a bucket policy to make your files publicly readable instead.'
+    ),
+  );
+
   $form['advanced']['s3fs_cache_control_header'] = array(
     '#type' => 'textfield',
     '#title' => t('S3 Object Cache-Control Header'),
@@ -344,7 +331,7 @@ if (module_exists('key')) {
       files, or will be using any other system that writes CSS or Javascript files into your site's public:// file
       system, you must perform some additional configuration on your webserver to make those files work correctly when
       stored in S3. Please see the section titled <i>Aggregated CSS and JS in S3</i> in the !README for details.",
-      array('!README' => l('README', backdrop_get_path('module', 's3fs') . '/README.txt'))
+      array('!README' => l('README', backdrop_get_path('module', 's3fs') . '/README.md'))
     ),
   );
 
@@ -404,7 +391,7 @@ if (module_exists('key')) {
       to S3 through S3 File System, you will need to manually move them into the corresponding folders.'),
   );
 
-  $form['advanced']['additional_folders']['s3fs_public_folder'] = array(
+  $form['advanced']['s3fs_additional_folders']['s3fs_public_folder'] = array(
     '#type' => 'textfield',
     '#title' => t('Public Folder'),
     '#default_value' => $config->get('s3fs_public_folder', 's3fs-public'),
@@ -413,7 +400,7 @@ if (module_exists('key')) {
     ),
   );
 
-  $form['advanced']['additional_folders']['s3fs_private_folder'] = array(
+  $form['advanced']['s3fs_additional_folders']['s3fs_private_folder'] = array(
     '#type' => 'textfield',
     '#title' => t('Private Folder'),
     '#default_value' => $config->get('s3fs_private_folder', 's3fs-private'),
@@ -475,30 +462,6 @@ if (module_exists('key')) {
   $form = system_settings_form($form);
   return $form;
 }
-
-/**
- * Validates the values on the admin form.
- */
-/* function s3fs_settings_validate($form, &$form_state) {
-  $config_from_form = _s3fs_convert_form_state_to_config($form_state);
-  // Get all the saved settings from s3fs_get_config(), then override them with the config from the form.
-  $config = array_merge(_s3fs_get_config(), $config_from_form);
-  _s3fs_validate_config($config);
-} */
-
-/**
- * Converts a $form_state array to a configuration settings array.
- */
-/* function _s3fs_convert_form_state_to_config($form_state) {
-  $config = array();
-  foreach ($form_state['values'] as $name => $value) {
-    // If the name starts with 's3fs_', strip that off and save the value.
-    if (substr($name, 0, 5) == 's3fs_') {
-      $config[substr($name, 5)] = $value;
-    }
-  }
-  return $config;
-} */
 
 /**
  * Builds the Actions form.
